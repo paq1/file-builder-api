@@ -1,36 +1,30 @@
-from fastapi import FastAPI, UploadFile
+from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import FileResponse
-from weasyprint import HTML
+import pdfkit
 import tempfile
 import os
 
-# Création de l’application FastAPI
-app = FastAPI(
-    title="HTML to PDF API",
-    description="Convertit un fichier HTML en PDF avec WeasyPrint",
-    version="1.0.0"
-)
+app = FastAPI()
 
-@app.post("/convert", summary="Convertir un fichier HTML en PDF")
-async def convert_html_to_pdf(file: UploadFile):
-    """
-    Reçoit un fichier HTML en entrée et retourne un PDF généré.
-    """
-    # Sauvegarde temporaire du HTML
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".html") as tmp_html:
-        content = await file.read()
-        tmp_html.write(content)
-        tmp_html_path = tmp_html.name
+@app.post("/convert")
+async def convert_html_to_pdf(file: UploadFile = File(...)):
+    # Lire contenu HTML
+    contents = await file.read()
 
-    # Fichier PDF temporaire
-    tmp_pdf_path = tmp_html_path.replace(".html", ".pdf")
+    # Créer fichiers temporaires
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".html") as temp_html:
+        temp_html.write(contents)
+        temp_html_path = temp_html.name
 
-    # Conversion HTML -> PDF
-    HTML(tmp_html_path).write_pdf(tmp_pdf_path)
+    output_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+    output_pdf_path = output_pdf.name
+    output_pdf.close()
 
-    # Retourner le PDF au client
-    return FileResponse(tmp_pdf_path, media_type="application/pdf", filename="output.pdf")
+    # Convertir en PDF
+    pdfkit.from_file(temp_html_path, output_pdf_path)
 
-@app.get("/", summary="Page d'accueil")
-async def root():
-    return {"message": "Bienvenue dans l'API HTML -> PDF 🚀"}
+    # Supprimer le HTML temporaire
+    os.remove(temp_html_path)
+
+    # Retourner le PDF
+    return FileResponse(output_pdf_path, media_type="application/pdf", filename="output.pdf")
