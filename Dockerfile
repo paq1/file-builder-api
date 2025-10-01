@@ -1,4 +1,4 @@
-FROM openlabs/docker-wkhtmltopdf:python3
+FROM surnet/alpine-python-wkhtmltopdf:latest
 
 WORKDIR /app
 
